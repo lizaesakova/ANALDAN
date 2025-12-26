@@ -11,7 +11,8 @@ player_states = {
     player_id: {
         "current_enemy": None,
         "session_start": None,
-        "level": 1
+        "level": 1,
+        "last_activity_time": 0  # время последнего действия (в секундах)
     } for player_id in PLAYER_IDS
 }
 
@@ -32,37 +33,45 @@ def connect_to_db():
 
 def generate_event(player_id):
     state = player_states[player_id]
-    event_types = ['attack', 'kill', 'rest']
-    
-    # Поведение зависит от уровня
-    if state["level"] < 3:
-        weights = [0.7, 0.2, 0.1]  # чаще атакует слабых
+    current_time = time.time()
+
+    # Если прошло больше 5 секунд с последнего действия — можно менять активность
+    if current_time - state["last_activity_time"] > 5:
+        event_types = ['attack', 'kill', 'rest']
+        if state["level"] < 3:
+            weights = [0.7, 0.2, 0.1]  # чаще атакует слабых
+        else:
+            weights = [0.5, 0.4, 0.1]  # больше убийств
+        event_type = random.choices(event_types, weights=weights)[0]
     else:
-        weights = [0.5, 0.4, 0.1]  # больше убийств
-    
-    event_type = random.choices(event_types, weights=weights)[0]
+        # Продолжаем текущее действие
+        event_type = 'attack' if state["current_enemy"] else 'rest'
 
     enemy_type = random.choice(['Goblin', 'Orc', 'Wolf', 'Skeleton'])
     ability = random.choice(['Slash', 'Fireball', 'Arrow', 'Heal', 'None'])
 
     if event_type == 'attack':
-        damage = random.randint(10, 30)
-        exp = random.randint(5, 15)
+        damage = random.randint(10, 50)  # 10–50 урона за атаку
+        exp = random.randint(1, 5)       # 1–5 опыта за атаку
         duration = 0
         state["current_enemy"] = enemy_type
     elif event_type == 'kill':
-        damage = random.randint(20, 40)
-        exp = random.randint(20, 50)
-        duration = random.randint(60, 180)
+        # Убийство даёт больше опыта, но редко происходит
+        damage = random.randint(30, 80)   # 30–80 урона при убийстве
+        exp = random.randint(10, 30)      # 10–30 опыта за убийство
+        duration = random.randint(10, 30) # 10–30 секунд после убийства
         state["current_enemy"] = None
         # Шанс повысить уровень
-        if random.random() < 0.3:
+        if random.random() < 0.1:
             state["level"] += 1
     else:  # rest
         damage = 0
         exp = 0
-        duration = random.randint(30, 120)
+        duration = random.randint(15, 60) # 15–60 секунд отдыха
         state["current_enemy"] = None
+
+    # Обновляем время последнего действия
+    state["last_activity_time"] = current_time
 
     return {
         'player_id': player_id,
