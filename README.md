@@ -110,7 +110,7 @@
 1. **Клонирование репозитория**
 
 ```bash
-git clone https://github.com/lizaesakova/ANALDAN.git
+git clone https://github.com/lizaesakova/analizDannih.git
 cd data-system
 ```
 
